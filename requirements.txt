@@ -1,0 +1,6 @@
+Faker==37.12.0
+psycopg2-binary
+sqlalchemy
+apache-airflow-providers-postgres
+matplotlib
+pyspark
