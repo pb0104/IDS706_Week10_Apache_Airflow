@@ -1,4 +1,4 @@
-﻿Id,Order Datetime,Order Status,Order Total,Items,Total sales,Order Count,Rating,Average Rating
+﻿Id,Order_Datetime,Order_Status,Order_Total,Items,Total_sales,Order_Count,Rating,Average_Rating
 10,14/09/21,CANCELLED,209,Boy's Coat (Blue),80,1,8,6
 20,18/09/21,COMPLETE,54,Boy's Coat (Blue),"10,816",90,4,6
 30,22/09/21,COMPLETE,43,Boy's Coat (Blue),319,3,8,6
