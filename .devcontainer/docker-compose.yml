@@ -1,12 +1,13 @@
-version: "3.9"
 
 x-airflow-common: &airflow-common
   build:
     context: ..            
     dockerfile: .devcontainer/.Dockerfile
+
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://vscode:vscode@db:5432/airflow_db
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://vscode:vscode@db:5432/airflow_db
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
@@ -17,7 +18,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-postgres
-    AIRFLOW_CONN_POSTGRES: 'postgresql://vscode:vscode@db:5432/airflow_db'
+
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
   volumes:
     - ${AIRFLOW_PROJ_DIR:-..}/dags:/opt/airflow/dags
@@ -25,6 +26,7 @@ x-airflow-common: &airflow-common
     - ${AIRFLOW_PROJ_DIR:-..}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-..}/plugins:/opt/airflow/plugins
     - ${AIRFLOW_PROJ_DIR:-..}/data:/opt/airflow/data
+
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on: &airflow-common-depends-on
     redis:
@@ -35,17 +37,15 @@ x-airflow-common: &airflow-common
 services:
   db:
     image: postgres:16
-    environment:
-      POSTGRES_USER: vscode
-      POSTGRES_PASSWORD: vscode
-      POSTGRES_DB: airflow_db
+    env_file:
+      - db.env
     ports:
       - "5432:5432"     
     volumes:
       - pg_data:/var/lib/postgresql/data
     command: ["postgres", "-c", "listen_addresses=*"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vscode -d airflow_db"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 3s
       timeout: 3s
       retries: 20
@@ -160,11 +160,12 @@ services:
         /entrypoint airflow version
         /entrypoint airflow config list >/dev/null
         chown -R "${AIRFLOW_UID}:0" /opt/airflow/
+        # Auto-init DB and create admin user
         /entrypoint airflow db upgrade
         /entrypoint airflow users create \
           --username $${_AIRFLOW_WWW_USER_USERNAME:-airflow} \
           --password $${_AIRFLOW_WWW_USER_PASSWORD:-airflow} \
-          --firstname Admin --lastname User --role Admin --email admin@example.com || true
+          --firstname Admin --lastname User --role Admin --email admin@example.com
     environment:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'
@@ -173,34 +174,27 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
-    restart: "no"
     depends_on:
       <<: *airflow-common-depends-on
 
   airflow-cli:
     <<: *airflow-common
-    profiles:
-      - debug
+    profiles: [debug]
     environment:
       <<: *airflow-common-env
       CONNECTION_CHECK_MAX_COUNT: "0"
-    command:
-      - bash
-      - -c
-      - airflow
+    command: ["bash", "-c", "airflow"]
+    depends_on:
+      <<: *airflow-common-depends-on
 
   flower:
     <<: *airflow-common
     command: celery flower
-    profiles:
-      - flower
+    profiles: [flower]
     ports:
       - "5555:5555"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
