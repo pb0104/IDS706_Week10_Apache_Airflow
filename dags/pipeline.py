@@ -113,17 +113,40 @@ with DAG(
         hook = PostgresHook(postgres_conn_id=conn_id)
         conn = hook.get_conn()
         try:
+            # Detect actual 'Id' column in customers table
+            customers_cols = pd.read_sql_query(
+                f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = '{schema}' AND table_name = '{customers_table}';
+                """, conn
+            )["column_name"].tolist()
+            orders_cols = pd.read_sql_query(
+                f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = '{schema}' AND table_name = '{orders_table}';
+                """, conn
+            )["column_name"].tolist()
+
+            # Pick the column that contains 'Id' (ignores hidden chars)
+            customer_id_col = next((c for c in customers_cols if "Id" in c), None)
+            order_id_col = next((c for c in orders_cols if "Id" in c), None)
+            if not customer_id_col or not order_id_col:
+                raise RuntimeError("Could not detect 'Id' columns in customers or orders table.")
+
+
             # Query that joins Customers.Id with Orders.Id (assumption: Orders.Id is customer id)
             sql = f'''
-                SELECT c."Id" AS customer_id,
-                       c."Full_Name",
-                       c."age",
-                       c."gender",
-                       o."Order_Total"
-                FROM "{schema}"."{customers_table}" c
-                JOIN "{schema}"."{orders_table}" o
-                  ON c."Id" = o."Id"
-                WHERE o."Order_Status" IS NULL OR o."Order_Status" <> 'CANCELLED' -- keep useful orders
+            SELECT c."{customer_id_col}" AS customer_id,
+                   c."Full_Name",
+                   c."age",
+                   c."gender",
+                   o."Order_Total"
+            FROM "{schema}"."{customers_table}" c
+            JOIN "{schema}"."{orders_table}" o
+              ON c."{customer_id_col}" = o."{order_id_col}"
+            WHERE o."Order_Status" IS NULL OR o."Order_Status" <> 'CANCELLED';
             '''
             df = pd.read_sql_query(sql, conn)
             if df.empty:
