@@ -4,7 +4,7 @@
 This project implements an **end-to-end ETL and visualization pipeline** using **Apache Airflow** to automate ingestion, loading, and analytics of customer order data.
 It reads CSV files (`Customers.csv` and `Orders.csv`), loads them into **PostgreSQL**, generates a **visual summary of order totals by gender**, and cleans up temporary files — all orchestrated by Airflow.
 
----
+
 
 ## 🧭 Project Overview
 
@@ -20,7 +20,7 @@ The DAG performs the following operations:
 
 The DAG runs **once on demand** (`@once` schedule), simulating a mini ETL cycle from ingestion to visualization.
 
----
+
 
 ## ⚙️ Architecture
 
@@ -67,7 +67,7 @@ The DAG runs **once on demand** (`@once` schedule), simulating a mini ETL cycle 
 | **Docker Compose** | Local container orchestration for Airflow & DB |
 | **Python 3.12**    | Core scripting and DAG definition              |
 
----
+
 
 
 ## 📦 DAG Design & Tasks
